@@ -10,7 +10,8 @@ pub struct TestApp {
 }
 
 async fn spawn_app() -> TestApp {
-    let listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind random port");
+    let listener = TcpListener::bind("127.0.0.1:0")
+        .expect("Failed to bind random port");
     let port = listener.local_addr().unwrap().port();
     let address = format!("http://127.0.0.1:{}", port);
 
@@ -18,7 +19,8 @@ async fn spawn_app() -> TestApp {
     configuration.database.database_name = Uuid::new_v4().to_string();
     let connecton_pool = configure_database(&configuration.database).await;
 
-    let server = run(listener, connecton_pool.clone()).expect("Failed to bind address");
+    let server = run(listener, connecton_pool.clone())
+        .expect("Failed to bind address");
     let _ = tokio::spawn(server);
 
     TestApp {
@@ -28,13 +30,17 @@ async fn spawn_app() -> TestApp {
 }
 
 pub async fn configure_database(config: &DatabaseSettings) -> PgPool {
-    let mut connection = PgConnection::connect(&config.connection_string_without_db()).await.expect("Failed to connect to database");
+    let mut connection = PgConnection::connect(&config.connection_string_without_db())
+        .await
+        .expect("Failed to connect to database");
     connection
         .execute(format!(r#"CREATE DATABASE "{}";"#, config.database_name).as_str())
         .await
         .expect("Failed to create database");
 
-    let connection_pool = PgPool::connect(&config.connection_string()).await.expect("Failed to connect to database");
+    let connection_pool = PgPool::connect(&config.connection_string())
+        .await
+        .expect("Failed to connect to database");
     sqlx::migrate!("./migrations")
         .run(&connection_pool)
         .await
@@ -48,7 +54,11 @@ async fn health_check_works() {
     let app= spawn_app().await;
     let client = reqwest::Client::new();
 
-    let response = client.get(&format!("{}/health_check", &app.address)).send().await.expect("Failed to send request");
+    let response = client
+        .get(&format!("{}/health_check", &app.address))
+        .send()
+        .await
+        .expect("Failed to send request");
 
     assert!(response.status().is_success());
     assert_eq!(Some(0), response.content_length());
