@@ -48,50 +48,57 @@ pub async fn subscribe(
     email_client: web::Data<EmailClient>,
     base_url: web::Data<ApplicationBaseUrl>,
 ) -> Result<HttpResponse, SubscribeError> {
-    let new_subscriber = form.0.try_into()?;
-    let mut transaction = pool.begin().await?;
-    let subscriber_id = insert_subscriber(&mut transaction, &new_subscriber).await?;
+    let new_subscriber = form.0.try_into().map_err(SubscribeError::ValidationError)?;
+    let mut transaction = pool.begin().await.map_err(|e| {
+        SubscribeError::UnexpectedError(
+            Box::new(e),
+            "Failed to acquire a Postgres connection from the pool".into(),
+        )
+    })?;
+    let subscriber_id = insert_subscriber(&mut transaction, &new_subscriber)
+        .await
+        .map_err(|e| {
+            SubscribeError::UnexpectedError(
+                Box::new(e),
+                "Failed to insert new subscriber in the database.".into(),
+            )
+        })?;
     let subscription_token = generate_subscription_token();
-    store_token(&mut transaction, subscriber_id, &subscription_token).await?;
+    store_token(&mut transaction, subscriber_id, &subscription_token)
+        .await
+        .map_err(|e| {
+            SubscribeError::UnexpectedError(
+                Box::new(e),
+                "Failed to store the confirmation token for a new subscriber.".into(),
+            )
+        })?;
 
-    transaction.commit().await?;
+    transaction.commit().await.map_err(|e| {
+        SubscribeError::UnexpectedError(
+            Box::new(e),
+            "Failed to commit SQL transaction to store a new subscriber.".into(),
+        )
+    })?;
     send_confirmation_email(
         &email_client,
         new_subscriber,
         &base_url.0,
         &subscription_token,
     )
-    .await?;
+    .await
+    .map_err(|e| {
+        SubscribeError::UnexpectedError(Box::new(e), "Failed to send a confirmation email.".into())
+    })?;
 
     Ok(HttpResponse::Ok().finish())
 }
 
-#[tracing::instrument(
-    name = "Send a confirmation email to a new subscriber",
-    skip(email_client, new_subscriber, base_url, subscription_token)
-)]
-pub async fn send_confirmation_email(
-    email_client: &EmailClient,
-    new_subscriber: NewSubscriber,
-    base_url: &str,
-    subscription_token: &str,
-) -> Result<(), reqwest::Error> {
-    let confirmation_link = format!(
-        "{}/subscriptions/confirm?subscription_token={}",
-        base_url, subscription_token
-    );
-    let plain_body = format!(
-        "Welcome to our newsletter!\nVisit {} to confirm your subscription.",
-        confirmation_link
-    );
-    let html_body = format!(
-        "Welcome to our newsletter!<br />\
-Click <a href=\"{}\">here</a> to confirm your subscription.",
-        confirmation_link
-    );
-    email_client
-        .send_email(new_subscriber.email, "Welcome!", &html_body, &plain_body)
-        .await
+fn generate_subscription_token() -> String {
+    let mut rng = thread_rng();
+    std::iter::repeat_with(|| rng.sample(Alphanumeric))
+        .map(char::from)
+        .take(32)
+        .collect()
 }
 
 #[tracing::instrument(
@@ -145,12 +152,32 @@ pub async fn store_token(
     Ok(())
 }
 
-fn generate_subscription_token() -> String {
-    let mut rng = thread_rng();
-    std::iter::repeat_with(|| rng.sample(Alphanumeric))
-        .map(char::from)
-        .take(32)
-        .collect()
+#[tracing::instrument(
+    name = "Send a confirmation email to a new subscriber",
+    skip(email_client, new_subscriber, base_url, subscription_token)
+)]
+pub async fn send_confirmation_email(
+    email_client: &EmailClient,
+    new_subscriber: NewSubscriber,
+    base_url: &str,
+    subscription_token: &str,
+) -> Result<(), reqwest::Error> {
+    let confirmation_link = format!(
+        "{}/subscriptions/confirm?subscription_token={}",
+        base_url, subscription_token
+    );
+    let plain_body = format!(
+        "Welcome to our newsletter!\nVisit {} to confirm your subscription.",
+        confirmation_link
+    );
+    let html_body = format!(
+        "Welcome to our newsletter!<br />\
+Click <a href=\"{}\">here</a> to confirm your subscription.",
+        confirmation_link
+    );
+    email_client
+        .send_email(new_subscriber.email, "Welcome!", &html_body, &plain_body)
+        .await
 }
 
 // #[derive(Debug)]
@@ -191,53 +218,25 @@ fn error_chain_fmt(
     Ok(())
 }
 
-#[derive(Debug)]
+#[derive(thiserror::Error)]
 pub enum SubscribeError {
+    #[error("{0}")]
     ValidationError(String),
-    DatabaseError(sqlx::Error),
-    StoreTokenError(StoreTokenError),
-    SendEmailError(reqwest::Error),
+    #[error("{1}")]
+    UnexpectedError(#[source] Box<dyn std::error::Error>, String),
 }
 
-impl From<String> for SubscribeError {
-    fn from(e: String) -> Self {
-        SubscribeError::ValidationError(e)
-    }
-}
-
-impl From<sqlx::Error> for SubscribeError {
-    fn from(e: sqlx::Error) -> Self {
-        SubscribeError::DatabaseError(e)
-    }
-}
-
-impl From<StoreTokenError> for SubscribeError {
-    fn from(e: StoreTokenError) -> Self {
-        SubscribeError::StoreTokenError(e)
-    }
-}
-
-impl From<reqwest::Error> for SubscribeError {
-    fn from(e: reqwest::Error) -> Self {
-        SubscribeError::SendEmailError(e)
-    }
-}
-
-impl std::fmt::Display for SubscribeError {
+impl std::fmt::Debug for SubscribeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Failed to create a new subscriber.")
+        error_chain_fmt(self, f)
     }
 }
-
-impl std::error::Error for SubscribeError {}
 
 impl ResponseError for SubscribeError {
     fn status_code(&self) -> StatusCode {
         match self {
             SubscribeError::ValidationError(_) => StatusCode::BAD_REQUEST,
-            SubscribeError::DatabaseError(_)
-            | SubscribeError::StoreTokenError(_)
-            | SubscribeError::SendEmailError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            SubscribeError::UnexpectedError(_, _) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }

@@ -1,6 +1,26 @@
 {
   "db": "PostgreSQL",
-  "ea94158f22272f9a44caecffcd8c14f1e1e85f060e0baf460b226c5e5f1e28fd": {
+  "311b4553091b4d849d94c02711acc394e47ea697e2df6010ba1b81e910a0167b": {
+    "describe": {
+      "columns": [
+        {
+          "name": "subscriber_id",
+          "ordinal": 0,
+          "type_info": "Uuid"
+        }
+      ],
+      "nullable": [
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Text"
+        ]
+      }
+    },
+    "query": "\n            SELECT subscriber_id\n            FROM subscription_tokens\n            WHERE subscription_token = $1\n        "
+  },
+  "51c9c995452d3359e3da7e2f2ff8a6e68690f740a36d2a32ec7c40b08931ebdb": {
     "describe": {
       "columns": [],
       "nullable": [],
@@ -13,6 +33,31 @@
         ]
       }
     },
-    "query": "\n    INSERT INTO subscriptions (id, email, name, subscribed_at, status)\n    VALUES ($1, $2, $3, $4, 'pending_confirmed')\n            "
+    "query": "\n    INSERT INTO subscriptions (id, email, name, subscribed_at, status)\n    VALUES ($1, $2, $3, $4, 'pending_confirmation')\n            "
+  },
+  "8331e19e367a63b0c2112d1d8c048dd1a5f0eaa49d265d407a6ffd9469f127ce": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Text",
+          "Uuid"
+        ]
+      }
+    },
+    "query": "INSERT INTO subscription_tokens (subscription_token, subscriber_id) VALUES ($1, $2)"
+  },
+  "eb379561efa218a6c4acd868887c626f5e875384088c261ea9ba92530b8d24a7": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Uuid"
+        ]
+      }
+    },
+    "query": "\n            UPDATE subscriptions\n            SET status = 'confirmed'\n            WHERE id = $1\n        "
   }
 }
