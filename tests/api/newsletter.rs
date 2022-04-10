@@ -31,12 +31,12 @@ async fn newsletters_are_delivered_to_confirmed_subscribers() {
     let app = spawn_app().await;
     create_confirmed_subscriber(&app).await;
 
-    // Mock::given(path("/email"))
-    //     .and(method("POST"))
-    //     .respond_with(ResponseTemplate::new(200))
-    //     .expect(1)
-    //     .mount(&app.email_server)
-    //     .await;
+    Mock::given(path("/email"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(1)
+        .mount(&app.email_server)
+        .await;
 
     let newsletter_request_body = serde_json::json!({
         "title": "Newsletter title",
