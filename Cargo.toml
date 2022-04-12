@@ -15,12 +15,14 @@ name = "zero2prod"
 [dependencies]
 actix-web = "4"
 anyhow = "1"
+base64 = "0.13"
 chrono = "0.4.15"
 config = { version = "0.11", default-features = false, features = ["yaml"] }
 reqwest = { version = "0.11", features = ["json"] }
 secrecy = { version = "0.8", features = ["serde"] }
 serde = "1.0.115"
 serde-aux = "3"
+sha3 = "0.9"
 rand = {  version = "0.8", features = ["std_rng"] }
 thiserror = { version = "1" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
