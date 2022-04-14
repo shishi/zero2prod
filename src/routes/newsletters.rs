@@ -1,14 +1,13 @@
 use crate::authentication::{validate_credentials, AuthError, Credentials};
+use crate::routes::error_chain_fmt;
 use crate::{domain::SubscriberEmail, email_client::EmailClient};
-use crate::{routes::error_chain_fmt, telemetry::spawn_blocking_with_tracing};
 use actix_web::{
     http::header::{HeaderMap, HeaderValue},
     http::{header, StatusCode},
     web, HttpRequest, HttpResponse, ResponseError,
 };
 use anyhow::Context;
-use argon2::{Argon2, PasswordHash, PasswordVerifier};
-use secrecy::{ExposeSecret, Secret};
+use secrecy::Secret;
 use sqlx::PgPool;
 
 #[derive(serde::Deserialize)]
