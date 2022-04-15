@@ -43,8 +43,8 @@ pub async fn login(
                 AuthError::InvalidCredentials(_) => LoginError::AuthError(e.into()),
                 AuthError::UnexpectedError(_) => LoginError::UnexpectedError(e.into()),
             };
-
             let query_string = format!("error={}", e);
+
             let hmac_tag = {
                 let mut mac =
                     Hmac::<sha2::Sha256>::new_from_slice(secret.0.expose_secret().as_bytes())
