@@ -3,6 +3,7 @@ use crate::{
     authentication::{validate_credentials, AuthError, Credentials},
     startup::HmacSecret,
 };
+use actix_web::cookie::Cookie;
 use actix_web::web;
 use actix_web::HttpResponse;
 use actix_web::{error::InternalError, http::header::LOCATION};
@@ -43,21 +44,19 @@ pub async fn login(
                 AuthError::InvalidCredentials(_) => LoginError::AuthError(e.into()),
                 AuthError::UnexpectedError(_) => LoginError::UnexpectedError(e.into()),
             };
-            let query_string = format!("error={}", e);
+            // let query_string = format!("error={}", e);
 
-            let hmac_tag = {
-                let mut mac =
-                    Hmac::<sha2::Sha256>::new_from_slice(secret.0.expose_secret().as_bytes())
-                        .unwrap();
-                mac.update(query_string.as_bytes());
-                mac.finalize().into_bytes()
-            };
+            // let hmac_tag = {
+            //     let mut mac =
+            //         Hmac::<sha2::Sha256>::new_from_slice(secret.0.expose_secret().as_bytes())
+            //             .unwrap();
+            //     mac.update(query_string.as_bytes());
+            //     mac.finalize().into_bytes()
+            // };
 
             let response = HttpResponse::SeeOther()
-                .insert_header((
-                    LOCATION,
-                    format!("/login?{}&tag={:x}", query_string, hmac_tag),
-                ))
+                .insert_header((LOCATION, "/login"))
+                .cookie(Cookie::new("_flash", e.to_string()))
                 .finish();
 
             Err(InternalError::from_response(e, response))
