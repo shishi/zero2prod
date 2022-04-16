@@ -1,14 +1,10 @@
+use crate::authentication::{validate_credentials, AuthError, Credentials};
 use crate::routes::error_chain_fmt;
-use crate::{
-    authentication::{validate_credentials, AuthError, Credentials},
-    startup::HmacSecret,
-};
 use actix_web::cookie::Cookie;
 use actix_web::web;
 use actix_web::HttpResponse;
 use actix_web::{error::InternalError, http::header::LOCATION};
-use hmac::{Hmac, Mac};
-use secrecy::{ExposeSecret, Secret};
+use secrecy::Secret;
 use sqlx::PgPool;
 
 #[derive(serde::Deserialize)]
@@ -18,13 +14,12 @@ pub struct FormData {
 }
 
 #[tracing::instrument(
-    skip(form, pool, secret),
+    skip(form, pool,),
     fields(username=tracing::field::Empty, user_id=tracing::field::Empty)
 )]
 pub async fn login(
     form: web::Form<FormData>,
     pool: web::Data<PgPool>,
-    secret: web::Data<HmacSecret>,
 ) -> Result<HttpResponse, InternalError<LoginError>> {
     let credentials = Credentials {
         username: form.0.username,
@@ -44,15 +39,6 @@ pub async fn login(
                 AuthError::InvalidCredentials(_) => LoginError::AuthError(e.into()),
                 AuthError::UnexpectedError(_) => LoginError::UnexpectedError(e.into()),
             };
-            // let query_string = format!("error={}", e);
-
-            // let hmac_tag = {
-            //     let mut mac =
-            //         Hmac::<sha2::Sha256>::new_from_slice(secret.0.expose_secret().as_bytes())
-            //             .unwrap();
-            //     mac.update(query_string.as_bytes());
-            //     mac.finalize().into_bytes()
-            // };
 
             let response = HttpResponse::SeeOther()
                 .insert_header((LOCATION, "/login"))
@@ -77,26 +63,3 @@ impl std::fmt::Debug for LoginError {
         error_chain_fmt(self, f)
     }
 }
-
-// impl ResponseError for LoginError {
-//     fn error_response(&self) -> HttpResponse {
-//         let query_string = format!("error={}", urlencoding::Encoded::new(self.to_string()));
-//         let secret: &[u8] = todo!();
-//         let hmac_tag = {
-//             let mut mac = Hmac::<sha2::Sha256>::new_from_slice(secret).unwrap();
-//             mac.update(query_string.as_bytes());
-//             mac.finalize().into_bytes()
-//         };
-
-//         HttpResponse::build(self.status_code())
-//             .insert_header((
-//                 "LOCATION",
-//                 format!("/login?{query_string}&tag={hmac_tag:x}"),
-//             ))
-//             .finish()
-//     }
-
-//     fn status_code(&self) -> StatusCode {
-//         StatusCode::SEE_OTHER
-//     }
-// }
