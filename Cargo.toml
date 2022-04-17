@@ -26,6 +26,7 @@ hmac = { version = "0.12", features = ["std"] }
 htmlescape = "0.3"
 secrecy = { version = "0.8", features = ["serde"] }
 serde = "1.0.115"
+serde_json = "1"
 serde-aux = "3"
 sha2 = "0.10"
 rand = {  version = "0.8", features = ["std_rng"] }
