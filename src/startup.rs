@@ -1,6 +1,8 @@
 use crate::configuration::Settings;
 use crate::email_client::EmailClient;
-use crate::routes::{confirm, health_check, login, login_form, publish_newsletter, subscribe};
+use crate::routes::{
+    admin_dashboard, confirm, health_check, login, login_form, publish_newsletter, subscribe,
+};
 use crate::{configuration::DatabaseSettings, routes::home};
 use actix_session::{storage::RedisSessionStore, SessionMiddleware};
 use actix_web::web::Data;
@@ -94,6 +96,7 @@ async fn run(
             .route("/", web::get().to(home))
             .route("/login", web::get().to(login_form))
             .route("/login", web::post().to(login))
+            .route("/admin/dashboard", web::get().to(admin_dashboard))
             .app_data(db_pool.clone())
             .app_data(email_client.clone())
             .app_data(base_url.clone())
