@@ -6,3 +6,7 @@ mod login;
 mod newsletter;
 mod subscription_confirm;
 mod subscriptions;
+
+fn each () {
+    ()
+}
