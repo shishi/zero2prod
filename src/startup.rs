@@ -1,7 +1,7 @@
 use crate::configuration::Settings;
 use crate::email_client::EmailClient;
 use crate::routes::{
-    admin_dashboard, change_password, change_password_form, confirm, health_check, login,
+    admin_dashboard, change_password, change_password_form, confirm, health_check, log_out, login,
     login_form, publish_newsletter, subscribe,
 };
 use crate::{configuration::DatabaseSettings, routes::home};
@@ -100,6 +100,7 @@ async fn run(
             .route("/admin/dashboard", web::get().to(admin_dashboard))
             .route("/admin/password", web::get().to(change_password_form))
             .route("/admin/password", web::post().to(change_password))
+            .route("/admin/logout", web::post().to(log_out))
             .app_data(db_pool.clone())
             .app_data(email_client.clone())
             .app_data(base_url.clone())
