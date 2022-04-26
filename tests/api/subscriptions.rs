@@ -87,42 +87,6 @@ async fn subscribe_returns_a_400_when_data_is_missing() {
 }
 
 #[tokio::test]
-async fn newsletters_returns_400_for_invalid_data() {
-    let app = spawn_app().await;
-    let test_cases = vec![
-        (
-            serde_json::json!({
-            "content": {
-            "text": "Newsletter body as plain text",
-            "html": "<p>Newsletter body as HTML</p>",
-            }
-            }),
-            "missing title",
-        ),
-        (
-            serde_json::json!({"title": "Newsletter!"}),
-            "missing content",
-        ),
-    ];
-
-    for (invalid_body, error_message) in test_cases {
-        let response = reqwest::Client::new()
-            .post(&format!("{}/newsletters", &app.address))
-            .json(&invalid_body)
-            .send()
-            .await
-            .unwrap();
-
-        assert_eq!(
-            400,
-            response.status().as_u16(),
-            "The API did not fail with 400 Bad Request when the payload was {}.",
-            error_message
-        );
-    }
-}
-
-#[tokio::test]
 async fn subscribe_return_a_400_when_fields_are_present_but_invalid() {
     let app = spawn_app().await;
     let test_cases = vec![
@@ -169,10 +133,6 @@ async fn subscribe_fails_if_there_is_a_fatal_database_error() {
         .execute(&app.db_pool)
         .await
         .unwrap();
-    // sqlx::query!("ALTER TABLE subscriptions DROP COLUMN subscription_token;",)
-    //     .execute(&app.db_pool)
-    //     .await
-    //     .unwrap();
 
     let response = app.post_subscriptions(body.into()).await;
 
