@@ -20,7 +20,7 @@ pub async fn get_saved_response(
         r#"
         SELECT
             response_status_code,
-            response_headers as "response_headers: Vec<HeaderPairRecord>",
+            response_headers as "response_headers!: Vec<HeaderPairRecord>",
             response_body
         FROM idempotency
         WHERE
@@ -28,7 +28,7 @@ pub async fn get_saved_response(
             idempotency_key = $2
         "#,
         user_id,
-        idempotency_key.as_ref(),
+        idempotency_key.as_ref()
     )
     .fetch_optional(pool)
     .await?;
@@ -36,7 +36,6 @@ pub async fn get_saved_response(
     if let Some(r) = saved_response {
         let status_code = StatusCode::from_u16(r.response_status_code.try_into()?)?;
         let mut response = HttpResponse::build(status_code);
-
         for HeaderPairRecord { name, value } in r.response_headers {
             response.append_header((name, value));
         }
@@ -59,9 +58,10 @@ pub async fn save_response(
     http_response: HttpResponse,
 ) -> Result<HttpResponse, anyhow::Error> {
     let (response_head, body) = http_response.into_parts();
+    // `MessageBody::Error` is not `Send` + `Sync`,
+    // therefore it doesn't play nicely with `anyhow`
     let body = to_bytes(body).await.map_err(|e| anyhow::anyhow!("{}", e))?;
     let status_code = response_head.status().as_u16() as i16;
-
     let headers = {
         let mut h = Vec::with_capacity(response_head.headers().len());
         for (name, value) in response_head.headers().iter() {
@@ -82,20 +82,13 @@ pub async fn save_response(
             response_body,
             created_at
         )
-        VALUES (
-            $1,
-            $2,
-            $3,
-            $4,
-            $5,
-            now()
-        )
+        VALUES ($1, $2, $3, $4, $5, now())
         "#,
         user_id,
         idempotency_key.as_ref(),
         status_code,
         headers,
-        body.as_ref(),
+        body.as_ref()
     )
     .execute(pool)
     .await?;
