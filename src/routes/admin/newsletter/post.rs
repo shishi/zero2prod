@@ -38,6 +38,7 @@ pub async fn publish_newsletter(
         idempotency_key,
     } = form.0;
     let idempotency_key: IdempotencyKey = idempotency_key.try_into().map_err(e400)?;
+
     match try_processing(&pool, &idempotency_key, *user_id)
         .await
         .map_err(e500)?

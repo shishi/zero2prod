@@ -40,7 +40,7 @@
     },
     "query": "\n        SELECT username\n        FROM users\n        WHERE user_id = $1\n        "
   },
-  "429f0897a3c43dca32af247947c1ddd6d6ddb3240e39400ebd68f60cc6f07bbd": {
+  "38ba903ad605b1dcbbae874b3bda0833c360ea3a31a7944a49aaab37cf3799aa": {
     "describe": {
       "columns": [],
       "nullable": [],
@@ -77,7 +77,7 @@
         ]
       }
     },
-    "query": "\n        INSERT INTO idempotency (\n            user_id,\n            idempotency_key,\n            response_status_code,\n            response_headers,\n            response_body,\n            created_at\n        )\n        VALUES ($1, $2, $3, $4, $5, now())\n        "
+    "query": "\n        UPDATE idempotency\n        SET\n            response_status_code = $3,\n            response_headers = $4,\n            response_body = $5\n        WHERE\n            user_id = $1 AND\n            idempotency_key = $2\n        "
   },
   "51c9c995452d3359e3da7e2f2ff8a6e68690f740a36d2a32ec7c40b08931ebdb": {
     "describe": {
@@ -120,11 +120,11 @@
     },
     "query": "\n            SELECT user_id, password_hash\n            FROM users\n            WHERE username = $1\n        "
   },
-  "7ac64e6648676ba6ff37297a69c978451b93d03065c147b6ae44ef6be4ceab2b": {
+  "57a1be7b14d0efbdabcb6fa5a1d7d6bb3ac080e92f5d66763695d4bcdf83a582": {
     "describe": {
       "columns": [
         {
-          "name": "response_status_code",
+          "name": "response_status_code!",
           "ordinal": 0,
           "type_info": "Int2"
         },
@@ -157,15 +157,15 @@
           }
         },
         {
-          "name": "response_body",
+          "name": "response_body!",
           "ordinal": 2,
           "type_info": "Bytea"
         }
       ],
       "nullable": [
-        false,
-        false,
-        false
+        true,
+        true,
+        true
       ],
       "parameters": {
         "Left": [
@@ -174,7 +174,7 @@
         ]
       }
     },
-    "query": "\n        SELECT\n            response_status_code,\n            response_headers as \"response_headers!: Vec<HeaderPairRecord>\",\n            response_body\n        FROM idempotency\n        WHERE\n            user_id = $1 AND\n            idempotency_key = $2\n        "
+    "query": "\n        SELECT\n            response_status_code as \"response_status_code!\",\n            response_headers as \"response_headers!: Vec<HeaderPairRecord>\",\n            response_body as \"response_body!\"\n        FROM idempotency\n        WHERE\n            user_id = $1 AND\n            idempotency_key = $2\n        "
   },
   "7b57e2776a245ba1602f638121550485e2219a6ccaaa62b5ec3e4683e33a3b5f": {
     "describe": {
@@ -231,5 +231,18 @@
       }
     },
     "query": "\n            UPDATE subscriptions\n            SET status = 'confirmed'\n            WHERE id = $1\n        "
+  },
+  "f835e8ebdcd687acf7fcf845127617860abd3d7a806a900aa6d608c993dabb0b": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Uuid",
+          "Text"
+        ]
+      }
+    },
+    "query": "\n        INSERT INTO idempotency (\n            user_id,\n            idempotency_key,\n            created_at\n        )\n        VALUES ($1, $2, now())\n        ON CONFLICT DO NOTHING\n        "
   }
 }
