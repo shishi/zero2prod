@@ -1,6 +1,6 @@
 use validator::validate_email;
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct SubscriberEmail(String);
 
 impl SubscriberEmail {
@@ -8,7 +8,7 @@ impl SubscriberEmail {
         if validate_email(&s) {
             Ok(Self(s))
         } else {
-            Err(format!("{} is not a valid email", s))
+            Err(format!("{} is not a valid subscriber email.", s))
         }
     }
 }
@@ -45,16 +45,10 @@ mod tests {
     }
 
     #[test]
-    fn email_misssing_subject_is_rejected() {
+    fn email_missing_subject_is_rejected() {
         let email = "@domain.com".to_string();
         assert_err!(SubscriberEmail::parse(email));
     }
-
-    // #[test]
-    // fn vaild_emails_are_parsed_successfully() {
-    //     let email = SafeEmail().fake();
-    //     claim::assert_ok!(SubscriberEmail::parse(email));
-    // }
 
     #[derive(Debug, Clone)]
     struct ValidEmailFixture(pub String);

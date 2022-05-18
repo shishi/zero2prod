@@ -1,19 +1,14 @@
-use std::ops::Deref;
-
-use actix_web::{body::MessageBody, FromRequest, HttpMessage};
-use actix_web::{
-    dev::{ServiceRequest, ServiceResponse},
-    error::InternalError,
-};
+use crate::session_state::TypedSession;
+use crate::utils::{e500, see_other};
+use actix_web::body::MessageBody;
+use actix_web::dev::{ServiceRequest, ServiceResponse};
+use actix_web::error::InternalError;
+use actix_web::{FromRequest, HttpMessage};
 use actix_web_lab::middleware::Next;
+use std::ops::Deref;
 use uuid::Uuid;
 
-use crate::{
-    session_state::TypedSession,
-    utils::{e500, see_other},
-};
-
-#[derive(Debug, Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct UserId(Uuid);
 
 impl std::fmt::Display for UserId {
@@ -46,7 +41,7 @@ pub async fn reject_anonymous_users(
         }
         None => {
             let response = see_other("/login");
-            let e = anyhow::anyhow!("The user has not logged in.");
+            let e = anyhow::anyhow!("The user has not logged in");
             Err(InternalError::from_response(e, response).into())
         }
     }

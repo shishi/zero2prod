@@ -3,10 +3,13 @@ use once_cell::sync::Lazy;
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use uuid::Uuid;
 use wiremock::MockServer;
-use zero2prod::configuration::{get_configuration, DatabaseSettings};
-use zero2prod::startup::get_connection_pool;
-use zero2prod::startup::Application;
 use zero2prod::telemetry::{get_subscriber, init_subscriber};
+use zero2prod::{
+    configuration::{get_configuration, DatabaseSettings},
+    issue_delivery_worker::try_execute_task,
+};
+use zero2prod::{email_client::EmailClient, startup::Application};
+use zero2prod::{issue_delivery_worker::ExecutionOutcome, startup::get_connection_pool};
 
 // Ensure that the `tracing` stack is only initialised once using `once_cell`
 static TRACING: Lazy<()> = Lazy::new(|| {
@@ -28,6 +31,7 @@ pub struct TestApp {
     pub email_server: MockServer,
     pub test_user: TestUser,
     pub api_client: reqwest::Client,
+    pub email_client: EmailClient,
 }
 
 pub struct TestUser {
@@ -73,16 +77,6 @@ impl TestApp {
         let plain_text = get_link(body["TextBody"].as_str().unwrap());
         ConfirmationLinks { html, plain_text }
     }
-
-    // pub async fn post_newsletters(&self, body: serde_json::Value) -> reqwest::Response {
-    //     self.api_client
-    //         .post(&format!("{}/newsletters", &self.address))
-    //         .basic_auth(&self.test_user.username, Some(&self.test_user.password))
-    //         .json(&body)
-    //         .send()
-    //         .await
-    //         .expect("Failed to execute request.")
-    // }
 
     pub async fn post_login<Body>(&self, body: &Body) -> reqwest::Response
     where
@@ -174,6 +168,18 @@ impl TestApp {
             .await
             .expect("Failed to execute request.")
     }
+
+    pub async fn dispatch_all_pending_emails(&self) {
+        loop {
+            if let ExecutionOutcome::EmptyQueue =
+                try_execute_task(&self.db_pool, &self.email_client)
+                    .await
+                    .unwrap()
+            {
+                break;
+            }
+        }
+    }
 }
 
 impl TestUser {
@@ -251,6 +257,7 @@ pub async fn spawn_app() -> TestApp {
         email_server,
         test_user: TestUser::generate(),
         api_client: client,
+        email_client: configuration.email_client.client(),
     };
 
     test_app.test_user.store(&test_app.db_pool).await;
